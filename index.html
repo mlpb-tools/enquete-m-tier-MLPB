@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Prépa Visites - Mission Locale</title>
+  
+  <!-- Polices Google -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel (pour lire le JSX directement dans le navigateur) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .font-poppins { font-family: 'Poppins', sans-serif; }
+    .font-montserrat { font-family: 'Montserrat', sans-serif; }
+    body { background-color: #FFFDF7; color: #1A1A1A; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* Animations custom */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- ICONES SVG SIMPLIFIÉES ---
+    const ChevronLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>;
+    const ChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+    const CopyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
+    const XIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+
+    // --- STYLES ET THÈME ---
+    const THEME = {
+      red: '#C62828',
+      yellow: '#FFD54F',
+      turq: '#00ACC1',
+      mint: '#66BB6A',
+      orange: '#FB8C00',
+      black: '#1A1A1A',
+      white: '#FFFDF7',
+      shadow: '4px 4px 0px #1A1A1A',
+      shadowSm: '2px 2px 0px #1A1A1A',
+    };
+
+    // --- DONNÉES DE L'APPLICATION ---
+    const STRUCTURE_TYPES = ['🏭 Entreprise', '🤝 Association', '🏛️ Institution / Service public', '🛒 Commerce', '🔧 Artisan'];
+
+    const QUESTIONS_DB = [
+      {
+        id: '1', title: 'Le contenu du poste et les missions', icon: '📋', color: THEME.turq, textColor: '#FFF',
+        items: [
+          "Quelles sont vos principales tâches au quotidien ?",
+          "Y a-t-il des tâches insoupçonnées que vous réalisez régulièrement ?",
+          "Concrètement, quelles sont les attentes de vos supérieurs ou de vos clients vis-à-vis de votre travail ?",
+          "À quoi ressemble une journée (ou une semaine) type dans votre métier ?"
+        ]
+      },
+      {
+        id: '2', title: 'L\'accès au métier et recrutement', icon: '🎓', color: THEME.mint, textColor: '#FFF',
+        items: [
+          "Quel a été votre parcours pour accéder à ce poste ?",
+          "Quels sont les canaux de recrutement qui marchent le mieux aujourd'hui (candidature spontanée, réseau, intérim...) ?",
+          "Est-ce qu'un diplôme spécifique est obligatoire, ou l'expérience prime-t-elle ?",
+          "Votre structure accueille-t-elle parfois des stagiaires (PMSMP) ou des apprentis/alternants ?"
+        ]
+      },
+      {
+        id: '3', title: 'Les compétences clés', icon: '🧠', color: THEME.orange, textColor: '#FFF',
+        items: [
+          "Quelles sont les compétences techniques indispensables pour ce métier ?",
+          "Quelles qualités humaines (savoir-être) font vraiment la différence au quotidien ?",
+          "Quels sont les outils, logiciels ou équipements que vous utilisez tous les jours ?",
+          "Qu'est-ce qui distingue un bon professionnel d'un excellent professionnel selon vous ?"
+        ]
+      },
+      {
+        id: '4', title: 'Environnement et conditions', icon: '🌍', color: '#7E57C2', textColor: '#FFF',
+        items: [
+          "À quoi ressemble votre cadre de travail (lieu, rythme, bruit...) ?",
+          "Travaillez-vous de manière autonome ou en équipe ? Avec quels autres métiers collaborez-vous ?",
+          "Votre activité connaît-elle des pics de charge, une saisonnalité, ou du travail le week-end/jours fériés ?",
+          "Votre emploi du temps est-il flexible ou très encadré ?"
+        ]
+      },
+      {
+        id: '5', title: 'Réalité du métier (Le +/-)', icon: '⚖️', color: '#EF5350', textColor: '#FFF',
+        items: [
+          "Qu'est-ce qui vous plaît le plus, ce qui vous donne envie de faire ce métier ?",
+          "À l'inverse, qu'aimez-vous le moins ou quelles sont les plus grosses contraintes ?",
+          "Qu'auriez-vous aimé savoir avant de vous lancer dans cette voie ?",
+          "Ce métier permet-il un bon équilibre entre vie professionnelle et vie personnelle ?"
+        ]
+      },
+      {
+        id: '6', title: 'La rémunération', icon: '💶', color: '#26A69A', textColor: '#FFF',
+        items: [
+          "Quelle est la rémunération moyenne pour un débutant dans ce métier ?",
+          "La rémunération comprend-elle une part variable, des primes, des avantages (CE, mutuelle...) ?",
+          "Le salaire vous semble-t-il en adéquation avec le niveau d'exigence du poste ?"
+        ]
+      },
+      {
+        id: '7', title: 'Conseils et Réseautage', icon: '🤝', color: THEME.black, textColor: THEME.yellow,
+        items: [
+          "Quels conseils donneriez-vous à quelqu'un qui souhaite débuter dans ce métier ?",
+          "Accepteriez-vous de jeter un œil rapide à mon CV pour me donner un avis de professionnel ?",
+          "Comment voyez-vous l'avenir de ce métier ? Est-ce un secteur porteur ?",
+          "Auriez-vous un confrère ou une personne de votre réseau à me recommander pour une autre enquête métier ?"
+        ]
+      }
+    ];
+
+    const CHECKLIST_DB = {
+      prep: [
+        "J'ai noté le nom, le poste et le lieu exact de la personne que je rencontre",
+        "J'ai préparé mes questions et je les ai sur moi (papier ou téléphone)",
+        "Je me suis renseigné(e) sur la structure (activité, taille, ce qu'ils font)",
+        "J'ai prévu de quoi prendre des notes (carnet + stylo)",
+        "Je connais l'itinéraire et j'ai vérifié les horaires de transport"
+      ],
+      attitude: [
+        "Ma tenue est propre et adaptée au secteur de l'entreprise",
+        "Je pars avec assez d'avance pour arriver 5 min avant",
+        "Mon téléphone sera silencieux et rangé pendant la visite",
+        "Je me rappelle pourquoi je fais cette enquête : découvrir, pas décrocher un emploi",
+        "Je suis prêt(e) à remercier chaleureusement à la fin et à serrer la main"
+      ]
+    };
+
+    const ATTRACT_OPTIONS = ['🔥 Encore plus motivé(e) !', '✅ Toujours autant', '🤔 Je dois y réfléchir', '❌ Moins qu\'avant'];
+    const IMPACT_OPTIONS = ['✅ Ça confirme mon projet !', '🔀 Je nuance un peu mon projet', '🔄 Je reconsidère une piste', '💡 Je découvre une nouvelle piste'];
+
+    // --- COMPOSANTS UI DE BASE ---
+    const NeoCard = ({ children, className = '', color = '#FFF', style = {} }) => (
+      <div 
+        className={`border-[3px] border-[#1A1A1A] rounded-xl overflow-hidden mb-5 ${className}`}
+        style={{ backgroundColor: color, boxShadow: THEME.shadow, ...style }}
+      >
+        {children}
+      </div>
+    );
+
+    const NeoInput = ({ label, ...props }) => (
+      <div className="mb-4">
+        {label && <label className="block font-poppins text-sm font-bold mb-1.5 text-[#1A1A1A]">{label}</label>}
+        {props.type === 'textarea' ? (
+          <textarea 
+            className="w-full border-2 border-[#1A1A1A] rounded-lg p-3 font-montserrat text-sm bg-white focus:outline-none focus:border-[#00ACC1] focus:ring-1 focus:ring-[#00ACC1] transition-shadow resize-y min-h-[100px]"
+            style={{ boxShadow: THEME.shadowSm }}
+            {...props}
+          />
+        ) : (
+          <input 
+            className="w-full border-2 border-[#1A1A1A] rounded-lg p-3 font-montserrat text-sm bg-white focus:outline-none focus:border-[#00ACC1] focus:ring-1 focus:ring-[#00ACC1] transition-shadow"
+            style={{ boxShadow: THEME.shadowSm }}
+            {...props}
+          />
+        )}
+      </div>
+    );
+
+    const NeoButton = ({ children, onClick, active, color = 'white', activeColor = THEME.turq, className = '' }) => (
+      <button
+        onClick={onClick}
+        className={`border-2 border-[#1A1A1A] rounded-lg py-2 px-3 font-poppins font-bold text-[0.8rem] transition-all active:translate-y-[2px] active:shadow-none flex items-center justify-center gap-2 ${className}`}
+        style={{ 
+          backgroundColor: active ? activeColor : color, 
+          color: active && activeColor !== THEME.yellow ? '#FFF' : THEME.black,
+          boxShadow: active ? THEME.shadowSm : THEME.shadowSm
+        }}
+      >
+        {children}
+      </button>
+    );
+
+    // --- COMPOSANT PRINCIPAL APP ---
+    function App() {
+      const [currentTab, setCurrentTab] = useState(1);
+      const [showRecap, setShowRecap] = useState(false);
+      
+      const [structType, setStructType] = useState('');
+      const [infos, setInfos] = useState({ nom: '', secteur: '', adresse: '', date: '', contact: '', poste: '', connais: '' });
+      const [metiers, setMetiers] = useState(['']);
+      
+      const [selectedQs, setSelectedQs] = useState([]);
+      const [customQs, setCustomQs] = useState({ '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] });
+      
+      const [checkedItems, setCheckedItems] = useState([]);
+      
+      const [notes, setNotes] = useState({ top3: '', surprise: '', forces: '', dev: '', merciDraft: '', synthese: '', action: '', rdv: '' });
+      const [attract, setAttract] = useState('');
+      const [impact, setImpact] = useState('');
+      const [merciSent, setMerciSent] = useState(false);
+
+      const handleInfoChange = (e) => setInfos({ ...infos, [e.target.name]: e.target.value });
+      const handleNoteChange = (e) => setNotes({ ...notes, [e.target.name]: e.target.value });
+      
+      const toggleQuestion = (q) => {
+        setSelectedQs(prev => prev.includes(q) ? prev.filter(item => item !== q) : [...prev, q]);
+      };
+      
+      const addCustomQ = (groupId) => {
+        const text = window.prompt("Saisissez votre question :");
+        if (text && text.trim()) {
+          setCustomQs(prev => ({ ...prev, [groupId]: [...prev[groupId], text.trim()] }));
+          setSelectedQs(prev => [...prev, text.trim()]); 
+        }
+      };
+
+      const toggleCheck = (item) => {
+        setCheckedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
+      };
+
+      const copyRecap = () => {
+        const recapNode = document.getElementById('recap-content');
+        if(recapNode) {
+          const text = recapNode.innerText;
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+            alert('Fiche copiée dans le presse-papier ! Vous pouvez la coller dans vos outils.');
+          } catch(err) {
+            alert('Erreur lors de la copie.');
+          }
+          document.body.removeChild(textArea);
+        }
+      };
+
+      const renderTab1 = () => (
+        <div className="animate-fade-in">
+          <NeoCard>
+            <div className="bg-[#00ACC1] text-white p-4 flex items-center gap-3 border-b-2 border-[#1A1A1A]">
+              <div className="text-3xl">🏛️</div>
+              <div>
+                <h3 className="font-poppins font-extrabold text-lg leading-tight">La structure visitée</h3>
+                <p className="font-montserrat text-xs opacity-90 font-medium">Infos essentielles avant de partir</p>
+              </div>
+            </div>
+            <div className="p-4 bg-white">
+              <label className="block font-poppins text-sm font-bold mb-2">Type de structure</label>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {STRUCTURE_TYPES.map(type => (
+                  <NeoButton key={type} active={structType === type} onClick={() => setStructType(type)}>
+                    {type}
+                  </NeoButton>
+                ))}
+              </div>
+
+              <NeoInput label="Nom de la structure" name="nom" value={infos.nom} onChange={handleInfoChange} placeholder="Ex : Mairie de Bayonne..." />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                <NeoInput label="Secteur d'activité" name="secteur" value={infos.secteur} onChange={handleInfoChange} placeholder="Ex : Social, Bâtiment..." />
+                <NeoInput label="Adresse / Localisation" name="adresse" value={infos.adresse} onChange={handleInfoChange} placeholder="Ex : 12 rue du Moulin..." />
+                <NeoInput label="Date & heure" name="date" value={infos.date} onChange={handleInfoChange} placeholder="Ex : Mardi 10 juin à 10h00" />
+                <NeoInput label="Contact (Nom)" name="contact" value={infos.contact} onChange={handleInfoChange} placeholder="Prénom + Nom..." />
+                <NeoInput label="Poste du contact" name="poste" value={infos.poste} onChange={handleInfoChange} placeholder="Ex : Responsable RH..." />
+              </div>
+              
+              <NeoInput type="textarea" label="Ce que je sais déjà sur eux" name="connais" value={infos.connais} onChange={handleInfoChange} placeholder="J'ai vu sur leur site que..." />
+
+              <label className="block font-poppins text-sm font-bold mb-2 mt-4">Le(s) métier(s) exploré(s)</label>
+              {metiers.map((m, i) => (
+                <div key={i} className="flex gap-2 mb-2">
+                  <input 
+                    className="flex-1 border-2 border-[#1A1A1A] rounded-lg p-2.5 font-montserrat text-sm bg-white focus:outline-none focus:border-[#00ACC1] focus:ring-1 focus:ring-[#00ACC1]"
+                    style={{ boxShadow: THEME.shadowSm }}
+                    value={m}
+                    onChange={(e) => {
+                      const newM = [...metiers];
+                      newM[i] = e.target.value;
+                      setMetiers(newM);
+                    }}
+                    placeholder="Ex : Agent d'accueil..."
+                  />
+                  {metiers.length > 1 && (
+                    <button 
+                      onClick={() => setMetiers(metiers.filter((_, idx) => idx !== i))}
+                      className="w-[42px] bg-[#FFEBEE] border-2 border-[#1A1A1A] rounded-lg flex items-center justify-center font-bold text-red-600"
+                      style={{ boxShadow: THEME.shadowSm }}
+                    >
+                      <XIcon />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button 
+                onClick={() => setMetiers([...metiers, ''])}
+                className="w-full mt-2 border-2 border-dashed border-[#1A1A1A] rounded-lg p-2 font-poppins font-bold text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+              >
+                ＋ Ajouter un métier
+              </button>
+            </div>
+          </NeoCard>
+        </div>
+      );
+
+      const renderTab2 = () => (
+        <div className="animate-fade-in">
+          <div className="bg-[#E0F7FA] border-[3px] border-[#1A1A1A] rounded-xl p-4 mb-5 text-sm font-montserrat font-medium" style={{ boxShadow: THEME.shadow }}>
+            📌 <strong>Consigne :</strong> Coche les questions qui t'intéressent. Prépare <strong>8 à 12 questions max</strong> pour ne pas dépasser le temps le jour J.
+          </div>
+
+          {QUESTIONS_DB.map(group => {
+            const allGroupQs = [...group.items, ...(customQs[group.id] || [])];
+            const selectedCount = allGroupQs.filter(q => selectedQs.includes(q)).length;
+            
+            return (
+              <NeoCard key={group.id}>
+                <div className="p-3 flex items-center gap-2 border-b-2 border-[#1A1A1A]" style={{ backgroundColor: group.color, color: group.textColor }}>
+                  <span className="text-xl">{group.icon}</span>
+                  <h4 className="font-poppins font-bold text-sm flex-1">{group.title}</h4>
+                  <span className="bg-black/20 text-white text-[0.65rem] font-bold px-2.5 py-1 rounded-full">{selectedCount} sel.</span>
+                </div>
+                <div className="bg-white flex flex-col">
+                  {allGroupQs.map((q, idx) => {
+                    const isSelected = selectedQs.includes(q);
+                    return (
+                      <div 
+                        key={idx} 
+                        onClick={() => toggleQuestion(q)}
+                        className={`p-3 border-b border-gray-100 flex items-start gap-3 cursor-pointer text-sm font-montserrat transition-colors ${isSelected ? 'bg-[#E0F7FA]' : 'hover:bg-gray-50'}`}
+                      >
+                        <div className="mt-0.5 text-lg">{isSelected ? '☑' : '☐'}</div>
+                        <div className={isSelected ? 'font-bold text-[#00838F]' : ''}>{q}</div>
+                      </div>
+                    );
+                  })}
+                  <div 
+                    onClick={() => addCustomQ(group.id)}
+                    className="p-3 text-sm font-montserrat text-gray-500 font-bold border-2 border-dashed border-gray-300 m-2 rounded-lg text-center cursor-pointer hover:bg-gray-50"
+                  >
+                    ＋ Ajouter ma propre question...
+                  </div>
+                </div>
+              </NeoCard>
+            );
+          })}
+
+          <div className="bg-[#FFD54F] border-[3px] border-[#1A1A1A] rounded-xl p-4 mb-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left" style={{ boxShadow: THEME.shadow }}>
+            <div>
+              <span className="font-poppins font-black text-2xl mr-2">{selectedQs.length}</span>
+              <span className="font-montserrat font-bold text-sm">question(s) cochée(s)</span>
+              <div className="text-xs font-montserrat mt-1 opacity-80 font-bold">
+                {selectedQs.length < 8 ? '— Vise 8 à 12 questions.' : selectedQs.length <= 12 ? '— Parfait ! ✅' : '— Attention, un peu trop long.'}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      const renderTab3 = () => {
+        const totalChecks = CHECKLIST_DB.prep.length + CHECKLIST_DB.attitude.length;
+        const progressPct = Math.round((checkedItems.length / totalChecks) * 100);
+
+        return (
+          <div className="animate-fade-in">
+            <NeoCard>
+              <div className="bg-[#FB8C00] text-white p-4 flex items-center gap-3 border-b-2 border-[#1A1A1A]">
+                <div className="text-3xl">✅</div>
+                <div>
+                  <h3 className="font-poppins font-extrabold text-lg leading-tight">Checklist Départ</h3>
+                  <p className="font-montserrat text-xs opacity-90 font-medium">Zéro improvisation le jour J</p>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-white">
+                <h4 className="font-poppins font-bold text-xs uppercase tracking-wider mb-3 text-gray-500 border-b-2 border-dashed border-gray-200 pb-2">📋 Préparation</h4>
+                {CHECKLIST_DB.prep.map(item => {
+                  const isChecked = checkedItems.includes(item);
+                  return (
+                    <div 
+                      key={item} onClick={() => toggleCheck(item)}
+                      className={`border-2 border-[#1A1A1A] rounded-lg p-3 mb-2 flex items-start gap-3 text-sm font-montserrat cursor-pointer transition-all ${isChecked ? 'bg-[#E8F5E9] border-[#66BB6A]' : 'bg-white'}`}
+                      style={{ boxShadow: isChecked ? '2px 2px 0px #66BB6A' : THEME.shadowSm }}
+                    >
+                      <div className="mt-0.5 text-lg">{isChecked ? '☑' : '☐'}</div>
+                      <div dangerouslySetInnerHTML={{ __html: item.replace(/^(.*?)(?=:|$)/, '<strong>$1</strong>') }} />
+                    </div>
+                  );
+                })}
+
+                <h4 className="font-poppins font-bold text-xs uppercase tracking-wider mb-3 mt-6 text-gray-500 border-b-2 border-dashed border-gray-200 pb-2">👗 Tenue & Attitude</h4>
+                {CHECKLIST_DB.attitude.map(item => {
+                  const isChecked = checkedItems.includes(item);
+                  return (
+                    <div 
+                      key={item} onClick={() => toggleCheck(item)}
+                      className={`border-2 border-[#1A1A1A] rounded-lg p-3 mb-2 flex items-start gap-3 text-sm font-montserrat cursor-pointer transition-all ${isChecked ? 'bg-[#E8F5E9] border-[#66BB6A]' : 'bg-white'}`}
+                      style={{ boxShadow: isChecked ? '2px 2px 0px #66BB6A' : THEME.shadowSm }}
+                    >
+                      <div className="mt-0.5 text-lg">{isChecked ? '☑' : '☐'}</div>
+                      <div dangerouslySetInnerHTML={{ __html: item.replace(/^(.*?)(?=:|$)/, '<strong>$1</strong>') }} />
+                    </div>
+                  );
+                })}
+
+                <div className="mt-6 bg-gray-50 border-2 border-[#1A1A1A] rounded-xl p-4" style={{ boxShadow: THEME.shadowSm }}>
+                  <div className="flex justify-between font-poppins font-bold text-sm mb-2">
+                    <span>Progression</span>
+                    <span>{checkedItems.length} / {totalChecks}</span>
+                  </div>
+                  <div className="h-3 bg-gray-200 border-2 border-[#1A1A1A] rounded-full overflow-hidden">
+                    <div className="h-full bg-[#66BB6A] transition-all duration-300" style={{ width: `${progressPct}%` }} />
+                  </div>
+                  {progressPct === 100 && <div className="text-center font-bold text-[#66BB6A] text-sm mt-2">Tu es 100% prêt(e) ! 🎉</div>}
+                </div>
+              </div>
+            </NeoCard>
+          </div>
+        );
+      };
+
+      const renderTab4 = () => (
+        <div className="animate-fade-in">
+          <NeoCard>
+            <div className="bg-[#7E57C2] text-white p-4 flex items-center gap-3 border-b-2 border-[#1A1A1A]">
+              <div className="text-3xl">✏️</div>
+              <div>
+                <h3 className="font-poppins font-extrabold text-lg leading-tight">Mes Notes</h3>
+                <p className="font-montserrat text-xs opacity-90 font-medium">À remplir à chaud, juste après !</p>
+              </div>
+            </div>
+            <div className="p-4 bg-white">
+              <div className="bg-[#EDE7F6] border-2 border-[#1A1A1A] rounded-lg p-3 mb-5 font-montserrat text-xs font-bold shadow-[2px_2px_0px_#1A1A1A]">
+                💡 Ce que tu ne notes pas maintenant sera oublié dans 48h.
+              </div>
+
+              <NeoInput type="textarea" label="🔑 Les 3 infos les plus importantes apprises" name="top3" value={notes.top3} onChange={handleNoteChange} placeholder="1. ...&#10;2. ...&#10;3. ..." />
+              <NeoInput type="textarea" label="😮 Ce qui m'a surpris (en bien ou mal)" name="surprise" value={notes.surprise} onChange={handleNoteChange} placeholder="Je ne savais pas que..." />
+              <NeoInput type="textarea" label="💪 Les compétences mentionnées que j'ai déjà" name="forces" value={notes.forces} onChange={handleNoteChange} placeholder="L'organisation, le contact client..." />
+              <NeoInput type="textarea" label="📈 Celles que je devrais développer" name="dev" value={notes.dev} onChange={handleNoteChange} placeholder="La maîtrise d'un logiciel..." />
+              
+              <label className="block font-poppins text-sm font-bold mb-2">🌡️ Ce métier m'attire-t-il toujours ?</label>
+              <div className="flex flex-col gap-2 mb-6">
+                {ATTRACT_OPTIONS.map(opt => (
+                  <NeoButton key={opt} active={attract === opt} onClick={() => setAttract(opt)} className="justify-start w-full">
+                    {opt}
+                  </NeoButton>
+                ))}
+              </div>
+
+              <div className="border-t-2 border-dashed border-gray-300 pt-4 mt-4">
+                <label className="block font-poppins text-sm font-bold mb-3">📬 Remerciements</label>
+                <div 
+                  onClick={() => setMerciSent(!merciSent)}
+                  className={`border-2 border-[#1A1A1A] rounded-lg p-3 mb-3 flex items-center gap-3 text-sm font-montserrat font-bold cursor-pointer ${merciSent ? 'bg-[#E8F5E9] border-[#66BB6A]' : 'bg-white'}`}
+                >
+                  <div className="text-lg">{merciSent ? '☑' : '☐'}</div>
+                  <div>Message de remerciement envoyé</div>
+                </div>
+                <NeoInput type="textarea" label="" name="merciDraft" value={notes.merciDraft} onChange={handleNoteChange} placeholder="Brouillon du message..." />
+              </div>
+            </div>
+          </NeoCard>
+        </div>
+      );
+
+      const renderTab5 = () => {
+        if (showRecap) {
+          return (
+            <div className="animate-fade-in bg-[#FFFDF7] p-2">
+               <div id="recap-content" className="bg-white border-[3px] border-[#1A1A1A] rounded-xl p-5 mb-5 shadow-[6px_6px_0px_#1A1A1A] font-montserrat text-sm relative">
+                 <div className="bg-[#1A1A1A] text-[#FFD54F] p-3 rounded-lg font-poppins font-black text-sm text-center mb-5 tracking-wide">
+                   FICHE D'ENQUÊTE MÉTIER<br/>
+                   {infos.nom ? infos.nom.toUpperCase() : 'STRUCTURE NON RENSEIGNÉE'}
+                 </div>
+                 
+                 <table className="w-full text-xs mb-5 border-collapse">
+                   <tbody>
+                     <tr><td className="p-2 font-bold bg-gray-100 border border-gray-300 w-1/3">Structure</td><td className="p-2 border border-gray-300">{infos.nom || '—'} <i>({structType || '—'})</i></td></tr>
+                     <tr><td className="p-2 font-bold bg-gray-100 border border-gray-300">Secteur</td><td className="p-2 border border-gray-300">{infos.secteur || '—'}</td></tr>
+                     <tr><td className="p-2 font-bold bg-gray-100 border border-gray-300">Contact</td><td className="p-2 border border-gray-300">{infos.contact || '—'} — {infos.poste || '—'}</td></tr>
+                     <tr><td className="p-2 font-bold bg-gray-100 border border-gray-300">Date</td><td className="p-2 border border-gray-300">{infos.date || '—'}</td></tr>
+                     <tr><td className="p-2 font-bold bg-gray-100 border border-gray-300">Métier(s)</td><td className="p-2 border border-gray-300">{metiers.filter(Boolean).join(' · ') || '—'}</td></tr>
+                   </tbody>
+                 </table>
+
+                 {selectedQs.length > 0 && (
+                   <div className="mb-4">
+                     <strong className="font-poppins text-[0.8rem] block mb-1">Questions posées ({selectedQs.length}) :</strong>
+                     <ul className="list-disc pl-5 text-[0.75rem] space-y-1">
+                       {selectedQs.map((q, i) => <li key={i}>{q}</li>)}
+                     </ul>
+                   </div>
+                 )}
+
+                 <div className="flex flex-col gap-3 mb-4">
+                   <div className="bg-[#E0F7FA] border-2 border-gray-300 rounded-lg p-3">
+                     <strong className="font-poppins text-xs block mb-1">🔑 Points clés</strong>
+                     <p className="text-[0.75rem] whitespace-pre-wrap">{notes.top3 || '—'}</p>
+                   </div>
+                   <div className="bg-[#FFF9E6] border-2 border-gray-300 rounded-lg p-3">
+                     <strong className="font-poppins text-xs block mb-1">😮 Surprises</strong>
+                     <p className="text-[0.75rem] whitespace-pre-wrap">{notes.surprise || '—'}</p>
+                   </div>
+                   <div className="bg-[#E8F5E9] border-2 border-gray-300 rounded-lg p-3">
+                     <strong className="font-poppins text-xs block mb-1">💪 Points forts</strong>
+                     <p className="text-[0.75rem] whitespace-pre-wrap">{notes.forces || '—'}</p>
+                   </div>
+                   <div className="bg-[#FBE9E7] border-2 border-gray-300 rounded-lg p-3">
+                     <strong className="font-poppins text-xs block mb-1">📈 À développer</strong>
+                     <p className="text-[0.75rem] whitespace-pre-wrap">{notes.dev || '—'}</p>
+                   </div>
+                 </div>
+
+                 <div className="bg-[#F3E5F5] border-2 border-gray-300 rounded-lg p-3 mb-4">
+                     <strong className="font-poppins text-xs block mb-1">✍️ Synthèse personnelle</strong>
+                     <p className="text-[0.75rem] whitespace-pre-wrap">{notes.synthese || '—'}</p>
+                 </div>
+
+                 <div className="flex flex-col gap-2 text-xs mb-4">
+                   <div className="bg-gray-100 border border-gray-300 rounded p-2"><strong>🌡️ Attractivité :</strong> {attract || '—'}</div>
+                   <div className="bg-gray-100 border border-gray-300 rounded p-2"><strong>🔄 Impact projet :</strong> {impact || '—'}</div>
+                 </div>
+
+                 <div className="bg-[#FFD54F] border-2 border-[#1A1A1A] rounded-lg p-3 font-poppins font-bold text-xs">
+                   🚀 Action : {notes.action || '—'} <br/>
+                   <span className="font-normal">📅 RDV ML : {notes.rdv || '—'}</span>
+                 </div>
+                 
+                 <div className="text-center mt-6 text-[0.65rem] text-gray-400 font-bold uppercase tracking-widest">
+                   Généré via Outil MLPB
+                 </div>
+               </div>
+
+               <div className="flex gap-3">
+                 <button onClick={() => setShowRecap(false)} className="flex-1 border-2 border-[#1A1A1A] bg-white font-poppins font-bold py-3 rounded-xl shadow-[2px_2px_0px_#1A1A1A] active:translate-y-[2px] active:shadow-none">
+                   Retour
+                 </button>
+                 <button onClick={copyRecap} className="flex-1 border-2 border-[#1A1A1A] bg-[#1A1A1A] text-[#FFD54F] font-poppins font-bold py-3 rounded-xl shadow-[2px_2px_0px_#1A1A1A] active:translate-y-[2px] active:shadow-none flex items-center justify-center gap-2">
+                   <CopyIcon /> Copier
+                 </button>
+               </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="animate-fade-in">
+            <NeoCard className="bg-[#00ACC1] text-white p-5 text-center">
+              <h3 className="font-poppins font-extrabold text-xl mb-1">🎯 Mon bilan d'enquête</h3>
+              <p className="font-montserrat text-xs opacity-90">Synthèse personnelle et plan d'action</p>
+            </NeoCard>
+
+            <NeoCard className="p-4">
+              <NeoInput type="textarea" label="✍️ En 2-3 phrases, ce que je retiens" name="synthese" value={notes.synthese} onChange={handleNoteChange} placeholder="Ce métier est plus varié que prévu..." />
+              
+              <label className="block font-poppins text-sm font-bold mb-2">🔄 Impact sur mon projet ?</label>
+              <div className="flex flex-col gap-2 mb-5">
+                {IMPACT_OPTIONS.map(opt => (
+                  <NeoButton key={opt} active={impact === opt} onClick={() => setImpact(opt)} className="justify-start w-full">
+                    {opt}
+                  </NeoButton>
+                ))}
+              </div>
+
+              <NeoInput label="🚀 Ma prochaine action concrète" name="action" value={notes.action} onChange={handleNoteChange} placeholder="Ex: Contacter un 2ème pro..." />
+              <NeoInput label="📅 Date RDV Conseiller" name="rdv" value={notes.rdv} onChange={handleNoteChange} placeholder="Ex: Jeudi 15..." />
+
+              <button 
+                onClick={() => setShowRecap(true)}
+                className="w-full mt-4 bg-[#1A1A1A] text-[#FFD54F] font-poppins font-extrabold text-sm py-4 rounded-xl border-[3px] border-[#1A1A1A] shadow-[4px_4px_0px_#1A1A1A] active:translate-y-[4px] active:shadow-none transition-all flex justify-center items-center gap-2"
+              >
+                📄 GÉNÉRER LA FICHE RÉCAP
+              </button>
+            </NeoCard>
+          </div>
+        );
+      };
+
+      return (
+        <div className="min-h-screen bg-[#FFFDF7] font-montserrat flex flex-col max-w-md mx-auto relative shadow-2xl overflow-x-hidden">
+          
+          {/* HEADER FIXE */}
+          <header className="sticky top-0 z-20 bg-[#1A1A1A] border-b-[3px] border-[#1A1A1A]">
+            <div className="p-4 flex items-center gap-3">
+              <div className="bg-[#00ACC1] border-2 border-white/20 rounded-full w-12 h-12 flex items-center justify-center text-xl shadow-inner shrink-0">
+                🔍
+              </div>
+              <div>
+                <h1 className="font-poppins font-black text-[1.15rem] leading-tight text-white">
+                  Préparer mon <br/><span className="text-[#FFD54F]">enquête métier</span>
+                </h1>
+              </div>
+            </div>
+            
+            {/* STEPPER NAVIGATION */}
+            {!showRecap && (
+              <div className="bg-white flex p-1 border-t-2 border-[#1A1A1A] overflow-x-auto hide-scrollbar">
+                {[1, 2, 3, 4, 5].map(step => (
+                  <button 
+                    key={step}
+                    onClick={() => setCurrentTab(step)}
+                    className={`flex-1 py-2 font-poppins font-bold text-xs flex items-center justify-center min-w-[60px] transition-colors border-r border-gray-200 last:border-0 ${currentTab === step ? 'bg-[#FFD54F] border-b-[3px] border-b-[#1A1A1A] text-[#1A1A1A]' : 'text-gray-400 bg-white border-b-[3px] border-b-transparent'}`}
+                  >
+                    Étape {step}
+                  </button>
+                ))}
+              </div>
+            )}
+          </header>
+
+          {/* CONTENU DYNAMIQUE */}
+          <main className="flex-1 p-4 pb-28">
+            {!showRecap && currentTab === 1 && renderTab1()}
+            {!showRecap && currentTab === 2 && renderTab2()}
+            {!showRecap && currentTab === 3 && renderTab3()}
+            {!showRecap && currentTab === 4 && renderTab4()}
+            {currentTab === 5 && renderTab5()}
+          </main>
+
+          {/* BOTTOM NAVIGATION FIXE */}
+          {!showRecap && (
+            <div className="fixed bottom-0 left-0 w-full bg-white border-t-[3px] border-[#1A1A1A] p-4 z-20 max-w-md left-1/2 -translate-x-1/2 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setCurrentTab(p => Math.max(1, p - 1))}
+                  disabled={currentTab === 1}
+                  className={`py-3 px-4 rounded-xl border-[3px] font-poppins font-bold text-sm flex items-center justify-center transition-all ${currentTab === 1 ? 'border-gray-300 text-gray-300 bg-gray-50' : 'border-[#1A1A1A] bg-white text-[#1A1A1A] shadow-[3px_3px_0px_#1A1A1A] active:translate-y-[2px] active:shadow-none'}`}
+                >
+                  <ChevronLeft />
+                </button>
+                <button 
+                  onClick={() => setCurrentTab(p => Math.min(5, p + 1))}
+                  className={`flex-1 py-3 px-4 rounded-xl border-[3px] border-[#1A1A1A] font-poppins font-black text-sm flex items-center justify-center gap-2 shadow-[3px_3px_0px_#1A1A1A] active:translate-y-[2px] active:shadow-none transition-all ${currentTab === 5 ? 'bg-[#66BB6A] text-white' : 'bg-[#00ACC1] text-white'}`}
+                >
+                  {currentTab === 5 ? 'VOIR LE BILAN' : 'SUIVANT'}
+                  {currentTab !== 5 && <ChevronRight />}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- INITIALISATION REACT ---
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
